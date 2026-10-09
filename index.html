@@ -1,9 +1,8 @@
 <!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="日記">
-<link rel="apple-touch-icon" href="icon.png"><link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.png">
 <title>日記</title>
 <style>
 :root{color-scheme:light dark;--bg:#fff;--fg:#111;--mut:#888;--acc:#d33}
@@ -36,7 +35,8 @@ function mk(){rec=new SR();rec.lang='ja-JP';rec.continuous=true;rec.interimResul
 async function go(){if(!SR){$('st').textContent='この端末は音声認識非対応';return}
  running=true;restarts=0;if(!start)start=Date.now();clearInterval(timer);timer=setInterval(tick,1000);
  try{wake=await navigator.wakeLock.request('screen')}catch(e){}
- mk();try{rec.start()}catch(e){}$('st').textContent='録音中';
+ mk();rec.onstart=()=>{$('st').textContent='聞き取り中'};
+ try{rec.start();$('st').textContent='マイク許可待ち…'}catch(e){$('st').textContent='開始失敗: '+e.message}
  bar([['終了','stop',stop],['一時停止','sub',pause]])}
 function pause(){running=false;try{rec.stop()}catch(e){}$('st').textContent='一時停止';bar([['再開','',go],['終了','stop',stop]])}
 function clean(s){return s.replace(/(えーっと|えーと|えっと|えー|あのー|あのう|そのー|ええと)[、,]?/g,'').replace(/(^|。)あの、/g,'$1').replace(/、{2,}/g,'、').replace(/。{2,}/g,'。')}
@@ -49,5 +49,4 @@ async function save(){await copy();location.href='shortcuts://run-shortcut?name=
 function reset(){finals=[];start=0;window._raw='';show('');$('tm').textContent='0:00';try{localStorage.removeItem(K)}catch(e){}$('st').textContent='待機中';init()}
 function init(){bar([['話し始める','',go]])}
 init();show('');
-if(new URLSearchParams(location.search).has('auto'))go();
 </script></body></html>
