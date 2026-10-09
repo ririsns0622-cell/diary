@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="日記">
+<link rel="apple-touch-icon" href="icon.png"><link rel="manifest" href="manifest.json">
+<title>日記</title>
+<style>
+:root{color-scheme:light dark;--bg:#fff;--fg:#111;--mut:#888;--acc:#d33}
+@media(prefers-color-scheme:dark){:root{--bg:#1c1c1e;--fg:#eee}}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.7 -apple-system,sans-serif;display:flex;flex-direction:column;height:100dvh}
+header{padding:12px 16px;display:flex;justify-content:space-between;color:var(--mut)}
+#t{flex:1;overflow:auto;padding:0 16px;white-space:pre-wrap}
+#i{color:var(--mut)}
+.bar{display:flex;gap:10px;padding:12px 16px calc(12px + env(safe-area-inset-bottom))}
+button{flex:1;font-size:18px;padding:16px;border:0;border-radius:14px;background:#4678c8;color:#fff}
+button.stop{background:var(--acc)}button.sub{background:#888}
+</style></head><body>
+<header><span id="st">待機中</span><span id="tm">0:00</span></header>
+<div id="t"><span id="f"></span><span id="i"></span></div>
+<div class="bar" id="bar"></div>
+<script>
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+const $=id=>document.getElementById(id);
+const K='diary-draft';
+let rec,running=false,finals=[],start=0,timer,wake,restarts=0;
+try{const d=JSON.parse(localStorage.getItem(K)||'null');if(d&&d.text)finals=[d.text]}catch(e){}
+function show(interim){$('f').textContent=finals.join('');$('i').textContent=interim||'';const t=$('t');t.scrollTop=t.scrollHeight;
+ try{localStorage.setItem(K,JSON.stringify({text:finals.join('')}))}catch(e){}}
+function bar(items){$('bar').innerHTML='';items.forEach(([l,c,f])=>{const b=document.createElement('button');b.textContent=l;if(c)b.className=c;b.onclick=f;$('bar').appendChild(b)})}
+function tick(){const s=Math.floor((Date.now()-start)/1000);$('tm').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function mk(){rec=new SR();rec.lang='ja-JP';rec.continuous=true;rec.interimResults=true;
+ rec.onresult=e=>{let it='';for(let i=e.resultIndex;i<e.results.length;i++){const r=e.results[i];if(r.isFinal)finals.push(r[0].transcript+'。');else it+=r[0].transcript}show(it)};
+ rec.onerror=e=>{$('st').textContent='エラー: '+e.error;if(e.error==='not-allowed'||e.error==='service-not-allowed')running=false};
+ rec.onend=()=>{if(running){setTimeout(()=>{try{mk();rec.start();$('st').textContent='録音中（再開 '+(++restarts)+'回）'}catch(e){}},150)}};}
+async function go(){if(!SR){$('st').textContent='この端末は音声認識非対応';return}
+ running=true;restarts=0;if(!start)start=Date.now();clearInterval(timer);timer=setInterval(tick,1000);
+ try{wake=await navigator.wakeLock.request('screen')}catch(e){}
+ mk();try{rec.start()}catch(e){}$('st').textContent='録音中';
+ bar([['終了','stop',stop],['一時停止','sub',pause]])}
+function pause(){running=false;try{rec.stop()}catch(e){}$('st').textContent='一時停止';bar([['再開','',go],['終了','stop',stop]])}
+function clean(s){return s.replace(/(えーっと|えーと|えっと|えー|あのー|あのう|そのー|ええと)[、,]?/g,'').replace(/(^|。)あの、/g,'$1').replace(/、{2,}/g,'、').replace(/。{2,}/g,'。')}
+function stop(){running=false;try{rec.stop()}catch(e){}clearInterval(timer);try{wake&&wake.release()}catch(e){}
+ const raw=finals.join('');const c=clean(raw);finals=[c];show('');$('st').textContent='完了（'+raw.length+'字）';
+ window._raw=raw;
+ bar([['保存','',save],['コピー','sub',copy],['消して新規','sub',reset]])}
+async function copy(){const t=JSON.stringify({date:new Date().toISOString(),raw:window._raw||'',text:finals.join('')});try{await navigator.clipboard.writeText(t);$('st').textContent='コピーしました'}catch(e){$('st').textContent='コピー失敗'}}
+async function save(){await copy();location.href='shortcuts://run-shortcut?name='+encodeURIComponent('日記保存')+'&input=clipboard'}
+function reset(){finals=[];start=0;window._raw='';show('');$('tm').textContent='0:00';try{localStorage.removeItem(K)}catch(e){}$('st').textContent='待機中';init()}
+function init(){bar([['話し始める','',go]])}
+init();show('');
+if(new URLSearchParams(location.search).has('auto'))go();
+</script></body></html>
