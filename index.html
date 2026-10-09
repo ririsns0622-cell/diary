@@ -44,7 +44,7 @@ function stop(){running=false;try{rec.stop()}catch(e){}clearInterval(timer);try{
  const raw=finals.join('');const c=clean(raw);finals=[c];show('');$('st').textContent='完了（'+raw.length+'字）';
  window._raw=raw;
  bar([['保存','',save],['コピー','sub',copy],['消して新規','sub',reset]])}
-async function copy(){const t=JSON.stringify({date:new Date().toISOString(),raw:window._raw||'',text:finals.join('')});try{await navigator.clipboard.writeText(t);$('st').textContent='コピーしました'}catch(e){$('st').textContent='コピー失敗'}}
+async function copy(){const t=JSON.stringify({date:new Date().toISOString(),raw:window._raw||finals.join(''),text:finals.join('')});try{await navigator.clipboard.writeText(t);$('st').textContent='コピーしました'}catch(e){$('st').textContent='コピー失敗'}}
 async function save(){await copy();location.href='shortcuts://run-shortcut?name='+encodeURIComponent('日記保存')+'&input=clipboard'}
 function reset(){finals=[];start=0;window._raw='';show('');$('tm').textContent='0:00';try{localStorage.removeItem(K)}catch(e){}$('st').textContent='待機中';init()}
 function init(){bar([['話し始める','',go]])}
